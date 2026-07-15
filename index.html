@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Junk Removal Cost Estimator (Kent, WA)</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --card: #ffffff;
+    --ink: #1f2420;
+    --muted: #6b7268;
+    --accent: #2f6b3e;
+    --accent-light: #e7f2ea;
+    --border: #dfe3de;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 32px 16px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin-bottom: 4px; }
+  .sub { color: var(--muted); margin-top: 0; margin-bottom: 24px; font-size: 0.95rem; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  label { display: block; font-weight: 600; font-size: 0.9rem; margin: 16px 0 6px; }
+  label:first-child { margin-top: 0; }
+  select, input[type="range"] {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 0.95rem;
+    background: #fff;
+  }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  .result {
+    background: var(--accent-light);
+    border: 1px solid #c9e2cf;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+  }
+  .result .amount { font-size: 2.1rem; font-weight: 700; color: var(--accent); }
+  .result .range { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+  .breakdown { margin-top: 16px; font-size: 0.85rem; color: var(--muted); }
+  .breakdown div { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed var(--border); }
+  footer {
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-top: 24px;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+  .disclaimer {
+    font-size: 0.8rem;
+    color: var(--muted);
+    background: #fbf7ea;
+    border: 1px solid #eee0b5;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 16px;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Junk Removal Cost Estimator</h1>
+    <p class="sub">A rough, open-source ballpark calculator for Kent, WA &amp; King County pricing patterns.</p>
+
+    <div class="card">
+      <label for="itemType">Item category</label>
+      <select id="itemType">
+        <option value="furniture">Furniture</option>
+        <option value="appliance">Appliance (fridge, washer, etc.)</option>
+        <option value="mattress">Mattress / box spring</option>
+        <option value="yard">Yard waste / debris</option>
+        <option value="construction">Construction debris</option>
+        <option value="mixed">Mixed household junk</option>
+      </select>
+
+      <label for="volume">Estimated volume: <span id="volumeLabel">Quarter load</span></label>
+      <input type="range" id="volume" min="1" max="4" step="1" value="2">
+
+      <div class="row">
+        <div>
+          <label for="access">Access difficulty</label>
+          <select id="access">
+            <option value="easy">Ground floor / curb</option>
+            <option value="stairs">Stairs, no elevator</option>
+            <option value="far">Long carry distance</option>
+          </select>
+        </div>
+        <div>
+          <label for="items">Approx. item count</label>
+          <input type="number" id="items" min="1" max="50" value="3">
+        </div>
+      </div>
+    </div>
+
+    <div class="result">
+      <div class="amount" id="estimateAmount">$0</div>
+      <div class="range" id="estimateRange">estimated range</div>
+      <div class="breakdown" id="breakdown"></div>
+    </div>
+
+    <div class="disclaimer">
+      This is a rough estimate only, based on general regional pricing patterns — not a real quote.
+      Actual pricing depends on the company, current disposal fees, and job specifics.
+    </div>
+
+    <footer>
+      For an accurate, no-obligation quote in Kent, WA and the surrounding King County area, a
+      <a href="https://junkisremoved.com/" target="_blank" rel="noopener">local junk removal company</a>
+      can give you a free on-site or photo-based estimate. If you're dealing with bulky or unusual items,
+      it's worth checking a
+      <a href="https://junkisremoved.com/junk-removal-service/" target="_blank" rel="noopener">full list of accepted items</a>
+      before assuming something can't be picked up.
+    </footer>
+  </div>
+
+<script>
+  const volumeLabels = ["", "Single item", "Quarter load", "Half load", "Full load"];
+  const volumeBase = { 1: 75, 2: 175, 3: 300, 4: 450 };
+
+  const materialMultiplier = {
+    furniture: 1.0,
+    appliance: 1.15,
+    mattress: 0.9,
+    yard: 0.85,
+    construction: 1.3,
+    mixed: 1.05
+  };
+
+  const accessAdd = { easy: 0, stairs: 40, far: 25 };
+
+  const itemTypeEl = document.getElementById("itemType");
+  const volumeEl = document.getElementById("volume");
+  const volumeLabelEl = document.getElementById("volumeLabel");
+  const accessEl = document.getElementById("access");
+  const itemsEl = document.getElementById("items");
+  const estimateAmountEl = document.getElementById("estimateAmount");
+  const estimateRangeEl = document.getElementById("estimateRange");
+  const breakdownEl = document.getElementById("breakdown");
+
+  function calculate() {
+    const vol = parseInt(volumeEl.value, 10);
+    volumeLabelEl.textContent = volumeLabels[vol];
+
+    const base = volumeBase[vol];
+    const mult = materialMultiplier[itemTypeEl.value];
+    const access = accessAdd[accessEl.value];
+    const itemCount = Math.max(1, parseInt(itemsEl.value || "1", 10));
+    const itemAdj = Math.max(0, (itemCount - 3)) * 8;
+
+    const mid = Math.round((base * mult) + access + itemAdj);
+    const low = Math.round(mid * 0.85);
+    const high = Math.round(mid * 1.2);
+
+    estimateAmountEl.textContent = `$${low} – $${high}`;
+    estimateRangeEl.textContent = "estimated range, before tax/fees";
+
+    breakdownEl.innerHTML = `
+      <div><span>Base (${volumeLabels[vol]})</span><span>$${base}</span></div>
+      <div><span>Material adjustment</span><span>x${mult.toFixed(2)}</span></div>
+      <div><span>Access difficulty</span><span>+$${access}</span></div>
+      <div><span>Item count adjustment</span><span>+$${itemAdj}</span></div>
+    `;
+  }
+
+  [itemTypeEl, volumeEl, accessEl, itemsEl].forEach(el => {
+    el.addEventListener("input", calculate);
+    el.addEventListener("change", calculate);
+  });
+
+  calculate();
+</script>
+</body>
+</html>
